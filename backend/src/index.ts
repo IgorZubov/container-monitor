@@ -4,6 +4,8 @@ import { metricsRoutes } from './routes/metrics.js';
 import { sseRoutes } from './routes/sse.js';
 import { settingsRoutes } from './routes/settings.js';
 import { uptimeRoutes } from './routes/uptime.js';
+import { authRoutes } from './routes/auth.js';
+import { stripeRoutes } from './routes/stripe.js';
 
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
 
@@ -19,6 +21,8 @@ await app.register(metricsRoutes);
 await app.register(sseRoutes);
 await app.register(settingsRoutes);
 await app.register(uptimeRoutes);
+await app.register(authRoutes);
+await app.register(stripeRoutes);
 
 app.get('/health', async () => ({ ok: true }));
 

@@ -3,6 +3,10 @@ import { db, type ServiceStatus } from '../db/schema.js';
 import { broadcast } from './sse.js';
 import { sendAlerts } from './alerts.js';
 
+const lookupToken = db.prepare<[string], { user_id: string }>(
+  `SELECT user_id FROM agent_tokens WHERE token = ?`
+);
+
 interface ContainerPayload {
   id: string;
   name: string;
@@ -51,7 +55,11 @@ export async function metricsRoutes(app: FastifyInstance): Promise<void> {
     },
   }, async (req, reply) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
-    if (token !== process.env.AGENT_TOKEN) {
+    if (!token) return reply.status(401).send({ error: 'Unauthorized' });
+
+    // Accept either a per-user agent token (DB lookup) or the legacy env-var token
+    const fromDb = lookupToken.get(token);
+    if (!fromDb && token !== process.env.AGENT_TOKEN) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
 

@@ -36,8 +36,9 @@ Key value prop: deploy one Docker container, get a dashboard of all your running
 | Database | SQLite for MVP → PostgreSQL for prod |
 | Frontend | React + TypeScript + Vite |
 | Real-time | SSE (Server-Sent Events) |
-| Auth | Token-based (agent token per user) |
-| Alerts | Telegram bot + Email + Webhook |
+| Auth | JWT (user sessions) + Bearer token (agent→backend) |
+| Alerts | Telegram bot + Webhook |
+| Payments | Stripe (Phase 3) |
 | Deployment | Docker + Docker Compose |
 
 ---
@@ -48,7 +49,7 @@ Key value prop: deploy one Docker container, get a dashboard of all your running
 stackwatch/
 ├── agent/                  # Lightweight agent (runs on user's server)
 │   ├── src/
-│   │   ├── collectors/     # docker.ts, http.ts, tcp.ts, ssl.ts, disk.ts
+│   │   ├── collectors/     # docker.ts, http.ts, tcp.ts, ssl.ts, disk.ts, exec.ts
 │   │   ├── config.ts       # config.yml parser + file watcher
 │   │   ├── events.ts       # Docker event stream listener
 │   │   └── index.ts
@@ -56,17 +57,20 @@ stackwatch/
 │   └── package.json
 ├── backend/                # Central server
 │   ├── src/
-│   │   ├── routes/         # metrics.ts, auth.ts, alerts.ts
-│   │   ├── db/             # schema + queries
+│   │   ├── routes/         # metrics.ts, sse.ts, alerts.ts, settings.ts, uptime.ts
+│   │   │                   # auth.ts (Phase 3), stripe.ts (Phase 3)
+│   │   ├── db/             # schema.ts
 │   │   └── index.ts
 │   ├── Dockerfile
 │   └── package.json
 ├── frontend/               # Dashboard
 │   ├── src/
-│   │   ├── components/     # ServiceCard, StatusBadge, Timeline
-│   │   ├── pages/          # Dashboard, Settings, Alerts
+│   │   ├── components/     # ServiceCard.tsx, UptimeBar.tsx
+│   │   ├── pages/          # Dashboard.tsx, Settings.tsx
+│   │   │                   # Login.tsx, Register.tsx (Phase 3)
 │   │   └── main.tsx
 │   └── package.json
+├── install.sh              # Agent install script (Phase 3)
 ├── docker-compose.yml      # Self-hosted full bundle
 ├── docker-compose.agent.yml # Agent-only (hosted tier)
 └── CLAUDE.md
@@ -74,39 +78,76 @@ stackwatch/
 
 ---
 
-## Core Features (MVP)
+## Phase Status
 
-### Agent
-- [ ] Docker socket listener — auto-discover all running containers
-- [ ] Filter short-lived containers (ignore if uptime < 5 min)
-- [ ] Docker label support: `monitor.ignore=true`, `monitor.name=My App`
-- [ ] Docker event stream — detect new containers in real time
-- [ ] HTTP check (status code + response time)
-- [ ] TCP check (port open)
-- [ ] SSL expiry check (warn N days before)
-- [ ] Disk usage check
-- [ ] Exec check (run command, check output)
-- [ ] `config.yml` optional layer — custom checks, no restart needed
-- [ ] POST metrics to backend every 30s
+### ✅ Phase 1 — MVP (complete)
 
-### Backend
-- [ ] Accept metrics from agent (token auth)
-- [ ] Store service history (SQLite for MVP)
-- [ ] SSE endpoint for real-time dashboard updates
-- [ ] Detect status changes (up → down, down → up)
-- [ ] Trigger alerts on status change
-- [ ] Telegram alert integration
-- [ ] Email alert integration
-- [ ] Webhook alert integration
+#### Agent
+- [x] Docker socket listener — auto-discover all running containers
+- [x] Filter short-lived containers (ignore if uptime < 5 min)
+- [x] Docker label support: `monitor.ignore=true`, `monitor.name=My App`
+- [x] Docker event stream — detect new containers in real time
+- [x] HTTP check (status code + response time)
+- [x] TCP check (port open)
+- [x] SSL expiry check (warn N days before)
+- [x] Disk usage check
+- [x] Exec check (run command, check output)
+- [x] `config.yml` optional layer — custom checks, no restart needed
+- [x] POST metrics to backend every 30s
 
-### Frontend
-- [ ] Dashboard: list of services with status badges
-- [ ] Auto-built from agent data — no manual config needed
-- [ ] Color coding: green / yellow (warning) / red (down)
-- [ ] SSL expiry warnings inline
-- [ ] Uptime % per service (last 24h, 7d, 30d)
-- [ ] Last seen / last changed timestamps
-- [ ] Settings page: alert channels, thresholds
+#### Backend
+- [x] Accept metrics from agent (token auth)
+- [x] Store service history (SQLite)
+- [x] SSE endpoint for real-time dashboard updates
+- [x] Detect status changes (up → down, down → up)
+- [x] Trigger alerts on status change
+- [x] Telegram alert integration
+- [x] Webhook alert integration (Discord / Slack / ntfy.sh)
+
+#### Frontend
+- [x] Dashboard: list of services with status badges
+- [x] Auto-built from agent data — no manual config needed
+- [x] Color coding: green / yellow (warning) / red (down)
+- [x] SSL expiry warnings inline
+- [x] Uptime % per service (last 24h, 7d, 30d)
+- [x] Last seen / last changed timestamps
+- [x] Settings page: alert channels, thresholds
+
+---
+
+### ✅ Phase 2 — Custom Checks + Polish (complete)
+
+- [x] TCP, Disk, Exec collectors + unit tests
+- [x] `config.yml` parser + hot reload
+- [x] Uptime history: 24h / 7d / 30d bars per service card
+- [x] Settings page: Telegram, webhook URL, poll interval, SSL/disk thresholds
+- [x] Webhook alert (Discord / Slack / ntfy.sh)
+- [ ] **⏸ DEFERRED: Basic onboarding flow for hosted tier (token generation UI)**
+      Reason: skipping until Phase 3 user accounts are in place — token generation
+      belongs in the post-signup flow, not as a standalone page.
+
+---
+
+### 🚧 Phase 3 — Hosted Tier (in progress)
+
+Goal: someone can sign up and pay $3/month.
+
+- [ ] User accounts — `POST /auth/register`, `POST /auth/login` (email + bcrypt password, JWT session)
+- [ ] Per-user agent tokens — `agent_tokens` table; metrics route validates token → resolves user
+- [ ] Multi-agent support — agents table tied to user; dashboard scoped per user
+- [ ] Stripe integration — `POST /stripe/checkout`, webhook handler for subscription lifecycle
+- [ ] Frontend: Login + Register pages, auth-gated dashboard
+- [ ] Agent install script (`install.sh`) — `curl -sSL ... | bash`
+- [ ] **⏸ DEFERRED: dashboard.stackwatch.dev production deployment config**
+
+#### Phase 3 Build Order
+1. `backend/src/db/schema.ts` — add `users`, `agent_tokens`, `agents` tables
+2. `backend/src/routes/auth.ts` — register + login (bcrypt + JWT)
+3. `backend/src/routes/metrics.ts` — update token validation to use `agent_tokens` table
+4. `backend/src/routes/stripe.ts` — checkout session + webhook
+5. `frontend/src/pages/Login.tsx` + `Register.tsx`
+6. `frontend/src/main.tsx` — auth-gate: redirect to login if no JWT
+7. `install.sh` — curl-pipe agent installer
 
 ---
 
@@ -175,26 +216,6 @@ These rules exist to avoid hitting API token limits and losing work mid-task.
 
 ---
 
-## MVP Build Order
-
-Implement in this exact order to have something runnable as fast as possible:
-
-1. `agent/src/collectors/docker.ts` — Docker socket, list containers
-2. `agent/src/events.ts` — Docker event stream (new containers)
-3. `agent/src/index.ts` — main loop, POST to backend
-4. `backend/src/db/schema.ts` — SQLite schema (services, metrics, alerts)
-5. `backend/src/routes/metrics.ts` — accept POST from agent
-6. `backend/src/routes/sse.ts` — SSE stream for frontend
-7. `frontend/src/components/ServiceCard.tsx` — single service status card
-8. `frontend/src/pages/Dashboard.tsx` — SSE consumer, renders cards
-9. `agent/src/collectors/http.ts` — HTTP checks
-10. `agent/src/collectors/ssl.ts` — SSL expiry
-11. `agent/src/config.ts` — config.yml parser + watcher
-12. `backend/src/routes/alerts.ts` — Telegram webhook alert
-13. `docker-compose.yml` — full self-hosted bundle
-
----
-
 ## Environment Variables
 
 ### Agent
@@ -209,18 +230,18 @@ CONFIG_PATH=/etc/stackwatch/config.yml
 ```env
 DATABASE_URL=./data/stackwatch.db
 JWT_SECRET=changeme
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
 PORT=4000
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_ID=
 ```
 
 ---
 
-## Out of Scope for MVP
+## Out of Scope (still)
 
-- Multi-user accounts / teams
-- Historical graphs / time series visualization
+- Multi-user teams / org accounts
+- Historical time-series graphs
 - Mobile app
 - Windows support
 - Kubernetes / Swarm support
-- Paid billing integration (Stripe)

@@ -9,6 +9,8 @@ export default defineConfig({
       '/metrics': 'http://localhost:4000',
       '/settings': 'http://localhost:4000',
       '/services': 'http://localhost:4000',
+      '/auth': 'http://localhost:4000',
+      '/stripe': 'http://localhost:4000',
     },
   },
 });

@@ -53,6 +53,25 @@ db.exec(`
     value       TEXT NOT NULL,
     updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
   );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id            TEXT PRIMARY KEY,
+    email         TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    stripe_customer_id  TEXT,
+    stripe_sub_id       TEXT,
+    plan          TEXT NOT NULL DEFAULT 'free' CHECK(plan IN ('free', 'pro')),
+    created_at    INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+
+  CREATE TABLE IF NOT EXISTS agent_tokens (
+    token       TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    label       TEXT NOT NULL DEFAULT 'default',
+    created_at  INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_agent_tokens_user ON agent_tokens(user_id);
 `);
 
 export type ServiceStatus = 'running' | 'stopped' | 'unknown';
@@ -71,5 +90,22 @@ export interface MetricRow {
   status: ServiceStatus;
   uptime_sec: number;
   reported_at: number;
+  created_at: number;
+}
+
+export interface UserRow {
+  id: string;
+  email: string;
+  password_hash: string;
+  stripe_customer_id: string | null;
+  stripe_sub_id: string | null;
+  plan: 'free' | 'pro';
+  created_at: number;
+}
+
+export interface AgentTokenRow {
+  token: string;
+  user_id: string;
+  label: string;
   created_at: number;
 }
