@@ -7,6 +7,8 @@ export default defineConfig({
     proxy: {
       '/stream': 'http://localhost:4000',
       '/metrics': 'http://localhost:4000',
+      '/settings': 'http://localhost:4000',
+      '/services': 'http://localhost:4000',
     },
   },
 });

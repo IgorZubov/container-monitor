@@ -47,6 +47,12 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_status_history_service
     ON status_history(service_id, changed_at DESC);
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL,
+    updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+  );
 `);
 
 export type ServiceStatus = 'running' | 'stopped' | 'unknown';

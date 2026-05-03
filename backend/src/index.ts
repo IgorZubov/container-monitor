@@ -2,6 +2,8 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { metricsRoutes } from './routes/metrics.js';
 import { sseRoutes } from './routes/sse.js';
+import { settingsRoutes } from './routes/settings.js';
+import { uptimeRoutes } from './routes/uptime.js';
 
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
 
@@ -15,6 +17,8 @@ const app = Fastify({ logger: true });
 await app.register(cors, { origin: true });
 await app.register(metricsRoutes);
 await app.register(sseRoutes);
+await app.register(settingsRoutes);
+await app.register(uptimeRoutes);
 
 app.get('/health', async () => ({ ok: true }));
 

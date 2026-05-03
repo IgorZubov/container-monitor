@@ -1,3 +1,5 @@
+import { UptimeBar } from './UptimeBar.js';
+
 export type ServiceStatus = 'running' | 'stopped' | 'unknown';
 
 export interface Service {
@@ -60,6 +62,9 @@ export function ServiceCard({ service }: Props) {
           ⚠ SSL expires in {service.sslDaysLeft}d
         </div>
       )}
+      <div style={{ marginTop: 6 }}>
+        <UptimeBar serviceId={service.id} window="24h" />
+      </div>
     </div>
   );
 }
