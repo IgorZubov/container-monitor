@@ -1,0 +1,17 @@
+version: '3.9'
+
+# Agent-only compose file for the hosted tier.
+# Set BACKEND_URL to your StackWatch cloud/self-hosted backend.
+
+services:
+  agent:
+    build: ./agent
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config.yml:/etc/stackwatch/config.yml:ro
+    environment:
+      BACKEND_URL: ${BACKEND_URL}
+      AGENT_TOKEN: ${AGENT_TOKEN}
+      POLL_INTERVAL: ${POLL_INTERVAL:-30000}
+      CONFIG_PATH: /etc/stackwatch/config.yml

@@ -1,0 +1,25 @@
+{
+  "name": "stackwatch-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx/esm src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dockerode": "^4.0.2",
+    "node-fetch": "^3.3.2",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^3.3.29",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.15.7",
+    "typescript": "^5.5.2",
+    "vitest": "^1.6.0"
+  }
+}

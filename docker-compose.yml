@@ -1,0 +1,42 @@
+version: '3.9'
+
+services:
+  agent:
+    build: ./agent
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config.yml:/etc/stackwatch/config.yml:ro
+    environment:
+      BACKEND_URL: http://backend:4000
+      AGENT_TOKEN: ${AGENT_TOKEN}
+      POLL_INTERVAL: ${POLL_INTERVAL:-30000}
+      CONFIG_PATH: /etc/stackwatch/config.yml
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    volumes:
+      - stackwatch_data:/app/data
+    environment:
+      DATABASE_URL: /app/data/stackwatch.db
+      AGENT_TOKEN: ${AGENT_TOKEN}
+      PORT: 4000
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+    ports:
+      - "4000:4000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  stackwatch_data:
