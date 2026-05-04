@@ -1,10 +1,23 @@
 import { useEffect, useReducer } from 'react';
-import { ServiceCard, type Service } from '../components/ServiceCard.js';
+import { ServiceCard, type Service, type ServiceStatus } from '../components/ServiceCard.js';
 
-type SSEMessage =
-  | { type: 'snapshot'; services: Service[] }
-  | { type: 'metrics_update'; containers: Service[]; reportedAt: number }
-  | { type: 'status_change'; container: Service };
+// Agent broadcasts camelCase; DB snapshots use snake_case. Accept both.
+function normalizeService(raw: Record<string, unknown>): Service {
+  return {
+    id: raw['id'] as string,
+    name: raw['name'] as string,
+    image: raw['image'] as string,
+    status: (raw['status'] as ServiceStatus) ?? 'unknown',
+    uptime_sec: (raw['uptime_sec'] ?? raw['uptimeSeconds'] ?? 0) as number,
+    reported_at: (raw['reported_at'] ?? raw['reportedAt'] ?? 0) as number,
+    sslDaysLeft: raw['sslDaysLeft'] as number | undefined,
+  };
+}
+
+type RawMessage =
+  | { type: 'snapshot'; services: Record<string, unknown>[] }
+  | { type: 'metrics_update'; containers: Record<string, unknown>[] }
+  | { type: 'status_change'; container: Record<string, unknown> };
 
 type State = { services: Map<string, Service>; connected: boolean };
 
@@ -14,9 +27,7 @@ type Action =
   | { type: 'connected'; value: boolean };
 
 function reducer(state: State, action: Action): State {
-  if (action.type === 'connected') {
-    return { ...state, connected: action.value };
-  }
+  if (action.type === 'connected') return { ...state, connected: action.value };
   if (action.type === 'snapshot') {
     const map = new Map(action.services.map((s) => [s.id, s]));
     return { ...state, services: map };
@@ -42,10 +53,14 @@ export function Dashboard() {
 
     es.onmessage = (e: MessageEvent<string>) => {
       try {
-        const msg = JSON.parse(e.data) as SSEMessage;
-        if (msg.type === 'snapshot') dispatch({ type: 'snapshot', services: msg.services });
-        else if (msg.type === 'metrics_update') dispatch({ type: 'upsert', services: msg.containers });
-        else if (msg.type === 'status_change') dispatch({ type: 'upsert', services: [msg.container] });
+        const msg = JSON.parse(e.data) as RawMessage;
+        if (msg.type === 'snapshot') {
+          dispatch({ type: 'snapshot', services: msg.services.map(normalizeService) });
+        } else if (msg.type === 'metrics_update') {
+          dispatch({ type: 'upsert', services: msg.containers.map(normalizeService) });
+        } else if (msg.type === 'status_change') {
+          dispatch({ type: 'upsert', services: [normalizeService(msg.container)] });
+        }
       } catch {
         console.error('[dashboard] failed to parse SSE message', e.data);
       }
