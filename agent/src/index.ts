@@ -1,4 +1,5 @@
 import { listContainers } from './collectors/docker.js';
+import { getContainerLogs } from './collectors/logs.js';
 import { watchDockerEvents } from './events.js';
 
 const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:4000';
@@ -29,6 +30,18 @@ async function postMetrics(): Promise<void> {
     }
 
     console.log(`[agent] reported ${containers.length} container(s)`);
+
+    // Post logs for each container (fire-and-forget, non-blocking)
+    for (const c of containers) {
+      getContainerLogs(c.id).then((lines) => {
+        if (lines.length === 0) return;
+        return fetch(`${BACKEND_URL}/logs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
+          body: JSON.stringify({ serviceId: c.id, lines, fetchedAt: Date.now() }),
+        });
+      }).catch((err) => console.error(`[agent] failed to post logs for ${c.name}:`, err));
+    }
   } catch (err) {
     console.error('[agent] failed to post metrics:', err);
   }

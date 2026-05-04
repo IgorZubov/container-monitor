@@ -48,6 +48,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_status_history_service
     ON status_history(service_id, changed_at DESC);
 
+  CREATE TABLE IF NOT EXISTS container_logs (
+    service_id  TEXT PRIMARY KEY REFERENCES services(id) ON DELETE CASCADE,
+    lines       TEXT NOT NULL DEFAULT '[]',
+    fetched_at  INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+
   CREATE TABLE IF NOT EXISTS settings (
     key         TEXT PRIMARY KEY,
     value       TEXT NOT NULL,

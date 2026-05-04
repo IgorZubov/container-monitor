@@ -6,6 +6,7 @@ import { settingsRoutes } from './routes/settings.js';
 import { uptimeRoutes } from './routes/uptime.js';
 import { authRoutes } from './routes/auth.js';
 import { stripeRoutes } from './routes/stripe.js';
+import { logsRoutes } from './routes/logs.js';
 
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
 
@@ -23,6 +24,7 @@ await app.register(settingsRoutes);
 await app.register(uptimeRoutes);
 await app.register(authRoutes);
 await app.register(stripeRoutes);
+await app.register(logsRoutes);
 
 app.get('/health', async () => ({ ok: true }));
 

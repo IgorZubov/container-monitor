@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { UptimeBar } from './UptimeBar.js';
+import { LogsModal } from './LogsModal.js';
 
 export type ServiceStatus = 'running' | 'stopped' | 'unknown';
 
@@ -30,6 +32,7 @@ interface Props {
 }
 
 export function ServiceCard({ service }: Props) {
+  const [showLogs, setShowLogs] = useState(false);
   const style = STATUS_STYLES[service.status] ?? STATUS_STYLES.unknown;
   const lastSeen = service.reported_at
     ? new Date(service.reported_at).toLocaleTimeString()
@@ -65,6 +68,13 @@ export function ServiceCard({ service }: Props) {
       <div style={{ marginTop: 6 }}>
         <UptimeBar serviceId={service.id} window="24h" />
       </div>
+      <button
+        onClick={() => setShowLogs(true)}
+        style={{ marginTop: 6, fontSize: 12, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+      >
+        View logs
+      </button>
+      {showLogs && <LogsModal serviceId={service.id} serviceName={service.name} onClose={() => setShowLogs(false)} />}
     </div>
   );
 }

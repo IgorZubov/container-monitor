@@ -11,6 +11,7 @@ export default defineConfig({
       '/services': 'http://localhost:4000',
       '/auth': 'http://localhost:4000',
       '/stripe': 'http://localhost:4000',
+      '/logs': 'http://localhost:4000',
     },
   },
 });
