@@ -85,13 +85,25 @@ export async function metricsRoutes(app: FastifyInstance): Promise<void> {
 
     const changed = processAll();
 
+    // Normalize to snake_case so SSE consumers match the DB snapshot shape
+    const normalized = containers.map((c) => ({
+      id: c.id,
+      name: c.name,
+      image: c.image,
+      status: c.status,
+      uptime_sec: c.uptimeSeconds,
+      reported_at: reportedAt,
+      labels: c.labels,
+    }));
+
     for (const { container: c, fromStatus } of changed) {
-      broadcast({ type: 'status_change', container: c });
+      const norm = normalized.find((n) => n.id === c.id)!;
+      broadcast({ type: 'status_change', container: norm });
       sendAlerts({ serviceName: c.name, fromStatus, toStatus: c.status })
         .catch((err) => console.error('[alerts] failed to send alert:', err));
     }
 
-    broadcast({ type: 'metrics_update', containers, reportedAt });
+    broadcast({ type: 'metrics_update', containers: normalized, reportedAt });
 
     return reply.status(204).send();
   });
