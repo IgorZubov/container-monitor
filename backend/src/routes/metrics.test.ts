@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Fastify from 'fastify';
-import { metricsRoutes } from './metrics.js';
 
-const mockRun = vi.fn();
-const mockGet = vi.fn();
-const mockTransaction = vi.fn((fn: () => unknown) => fn);
-const mockBroadcast = vi.fn();
-const mockSendAlerts = vi.fn().mockResolvedValue(undefined);
+const { mockRun, mockGet, mockTransaction, mockBroadcast, mockSendAlerts } = vi.hoisted(() => ({
+  mockRun: vi.fn(),
+  mockGet: vi.fn(),
+  mockTransaction: vi.fn((fn: () => unknown) => fn),
+  mockBroadcast: vi.fn(),
+  mockSendAlerts: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('../db/schema.js', () => ({
   db: {
@@ -19,6 +20,8 @@ vi.mock('../db/schema.js', () => ({
 
 vi.mock('./sse.js', () => ({ broadcast: mockBroadcast }));
 vi.mock('./alerts.js', () => ({ sendAlerts: mockSendAlerts }));
+
+import { metricsRoutes } from './metrics.js';
 
 const VALID_TOKEN = 'test-token';
 

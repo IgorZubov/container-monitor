@@ -4,8 +4,20 @@ vi.mock('node:child_process', () => ({
   execFile: vi.fn(),
 }));
 
+// Match the calling convention used by mockExecFile below, which invokes its
+// callback with `(err, { stdout, stderr })` instead of execFile's native
+// `(err, stdout, stderr)`. This lines up with what promisify(execFile)
+// resolves to in production.
 vi.mock('node:util', () => ({
-  promisify: vi.fn((fn: unknown) => fn),
+  promisify:
+    <Args extends unknown[], R>(fn: (...args: [...Args, (err: Error | null, result: R) => void]) => void) =>
+    (...args: Args) =>
+      new Promise<R>((resolve, reject) => {
+        fn(...args, (err, result) => {
+          if (err) reject(Object.assign(err, (result as object | null) ?? {}));
+          else resolve(result);
+        });
+      }),
 }));
 
 import { execFile } from 'node:child_process';

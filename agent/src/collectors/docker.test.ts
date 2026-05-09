@@ -1,20 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('dockerode', () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      listContainers: vi.fn(),
-    })),
-  };
-});
+const { mockListContainers } = vi.hoisted(() => ({ mockListContainers: vi.fn() }));
 
-import Dockerode from 'dockerode';
+vi.mock('dockerode', () => ({
+  default: vi.fn().mockImplementation(() => ({
+    listContainers: mockListContainers,
+  })),
+}));
+
+import type Dockerode from 'dockerode';
 import { listContainers } from './docker.js';
 
-const mockInstance = vi.mocked(new (Dockerode as unknown as new () => { listContainers: ReturnType<typeof vi.fn> })());
-
 beforeEach(() => {
-  vi.clearAllMocks();
+  mockListContainers.mockReset();
 });
 
 const makeContainer = (overrides: Partial<Dockerode.ContainerInfo> = {}): Dockerode.ContainerInfo => ({
@@ -36,7 +34,7 @@ const makeContainer = (overrides: Partial<Dockerode.ContainerInfo> = {}): Docker
 
 describe('listContainers', () => {
   it('returns a running container', async () => {
-    mockInstance.listContainers.mockResolvedValueOnce([makeContainer()]);
+    mockListContainers.mockResolvedValueOnce([makeContainer()]);
     const result = await listContainers();
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe('my-app');
@@ -44,7 +42,7 @@ describe('listContainers', () => {
   });
 
   it('filters out containers with monitor.ignore=true', async () => {
-    mockInstance.listContainers.mockResolvedValueOnce([
+    mockListContainers.mockResolvedValueOnce([
       makeContainer({ Labels: { 'monitor.ignore': 'true' } }),
     ]);
     const result = await listContainers();
@@ -52,7 +50,7 @@ describe('listContainers', () => {
   });
 
   it('filters out short-lived containers (uptime < 5 min)', async () => {
-    mockInstance.listContainers.mockResolvedValueOnce([
+    mockListContainers.mockResolvedValueOnce([
       makeContainer({ Status: 'Up 2 minutes' }),
     ]);
     const result = await listContainers();
@@ -60,7 +58,7 @@ describe('listContainers', () => {
   });
 
   it('uses monitor.name label when present', async () => {
-    mockInstance.listContainers.mockResolvedValueOnce([
+    mockListContainers.mockResolvedValueOnce([
       makeContainer({ Labels: { 'monitor.name': 'My Custom Name' } }),
     ]);
     const result = await listContainers();
@@ -68,8 +66,26 @@ describe('listContainers', () => {
   });
 
   it('returns empty array when no containers are running', async () => {
-    mockInstance.listContainers.mockResolvedValueOnce([]);
+    mockListContainers.mockResolvedValueOnce([]);
     const result = await listContainers();
     expect(result).toHaveLength(0);
+  });
+
+  it('uses the resolved name (not Docker container ID) as the stable id', async () => {
+    // Stable id survives container recreation on redeploy — Docker assigns
+    // a new container ID each time, but the name is the same. Without this,
+    // the dashboard shows duplicate cards after every redeploy.
+    mockListContainers.mockResolvedValueOnce([makeContainer()]);
+    const result = await listContainers();
+    expect(result[0].id).toBe('my-app');
+    expect(result[0].dockerId).toBe('abc123');
+  });
+
+  it('uses monitor.name label as the stable id when set', async () => {
+    mockListContainers.mockResolvedValueOnce([
+      makeContainer({ Labels: { 'monitor.name': 'My Custom Name' } }),
+    ]);
+    const result = await listContainers();
+    expect(result[0].id).toBe('My Custom Name');
   });
 });

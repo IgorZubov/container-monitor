@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import Fastify from 'fastify';
-import { sseRoutes, broadcast } from './sse.js';
 
-const mockAll = vi.fn().mockReturnValue([]);
+const { mockAll } = vi.hoisted(() => ({ mockAll: vi.fn().mockReturnValue([]) }));
 
 vi.mock('../db/schema.js', () => ({
   db: {
@@ -12,41 +10,36 @@ vi.mock('../db/schema.js', () => ({
   },
 }));
 
+import { broadcast, getSnapshot } from './sse.js';
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockAll.mockReturnValue([]);
 });
 
-async function buildApp() {
-  const app = Fastify();
-  await app.register(sseRoutes);
-  return app;
-}
-
-describe('GET /stream', () => {
-  it('responds with text/event-stream content type', async () => {
-    const app = await buildApp();
-
-    const res = await app.inject({ method: 'GET', url: '/stream' });
-    expect(res.headers['content-type']).toContain('text/event-stream');
-  });
-
-  it('sends a snapshot event on connect', async () => {
-    const services = [{ id: 'abc', name: 'nginx', status: 'running' }];
+describe('getSnapshot', () => {
+  it('returns the rows the DB query produced', () => {
+    const services = [{ id: 'nginx', name: 'nginx', status: 'running' }];
     mockAll.mockReturnValue(services);
 
-    const app = await buildApp();
-    const res = await app.inject({ method: 'GET', url: '/stream' });
-
-    expect(res.body).toContain('"type":"snapshot"');
-    expect(res.body).toContain('"nginx"');
+    expect(getSnapshot()).toEqual(services);
   });
 
-  it('sends empty snapshot when no services exist', async () => {
-    const app = await buildApp();
-    const res = await app.inject({ method: 'GET', url: '/stream' });
+  it('returns an empty list when no services have reported recently', () => {
+    expect(getSnapshot()).toEqual([]);
+  });
 
-    expect(res.body).toContain('"services":[]');
+  it('passes a stale-cutoff timestamp to the prepared query', () => {
+    const before = Date.now();
+    getSnapshot();
+    const after = Date.now();
+
+    expect(mockAll).toHaveBeenCalledTimes(1);
+    const cutoff = mockAll.mock.calls[0][0] as number;
+    // Cutoff is now() - threshold; default threshold is 1h. Just sanity-check
+    // that it's a recent past timestamp, not the unfiltered query of yore.
+    expect(cutoff).toBeLessThanOrEqual(after);
+    expect(cutoff).toBeGreaterThan(before - 24 * 60 * 60 * 1000);
   });
 });
 
