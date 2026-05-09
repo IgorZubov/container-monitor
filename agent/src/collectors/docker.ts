@@ -1,7 +1,8 @@
 import Dockerode from 'dockerode';
 
 export interface ContainerInfo {
-  id: string;
+  id: string;       // stable key = container name (unique per host)
+  dockerId: string; // actual Docker container ID (used for Docker API calls)
   name: string;
   image: string;
   status: 'running' | 'stopped' | 'unknown';
@@ -29,7 +30,8 @@ export async function listContainers(): Promise<ContainerInfo[]> {
     const name = labels['monitor.name'] ?? (c.Names[0]?.replace(/^\//, '') ?? c.Id.slice(0, 12));
 
     containers.push({
-      id: c.Id,
+      id: name,
+      dockerId: c.Id,
       name,
       image: c.Image,
       status: c.State === 'running' ? 'running' : c.State === 'exited' ? 'stopped' : 'unknown',
