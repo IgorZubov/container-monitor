@@ -34,6 +34,15 @@ function reducer(state: State, action: Action): State {
   }
   if (action.type === 'upsert') {
     const map = new Map(state.services);
+    // Drop existing rows that share a name with an incoming update but have
+    // a different id — orphans from container redeploys before the agent
+    // started using stable ids. Without this, the dashboard would show two
+    // cards for the same service until the backend's stale window expires.
+    const incomingByName = new Map(action.services.map((s) => [s.name, s.id]));
+    for (const [id, svc] of map) {
+      const incomingId = incomingByName.get(svc.name);
+      if (incomingId !== undefined && incomingId !== id) map.delete(id);
+    }
     for (const s of action.services) map.set(s.id, s);
     return { ...state, services: map };
   }
