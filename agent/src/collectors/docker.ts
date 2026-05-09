@@ -1,7 +1,11 @@
 import Dockerode from 'dockerode';
 
 export interface ContainerInfo {
+  // Stable service identity — survives container recreation on redeploy.
+  // Derived from monitor.name label or the Docker container name.
   id: string;
+  // Docker's ephemeral container ID. Used only for Docker API calls (e.g. logs).
+  dockerId: string;
   name: string;
   image: string;
   status: 'running' | 'stopped' | 'unknown';
@@ -29,7 +33,8 @@ export async function listContainers(): Promise<ContainerInfo[]> {
     const name = labels['monitor.name'] ?? (c.Names[0]?.replace(/^\//, '') ?? c.Id.slice(0, 12));
 
     containers.push({
-      id: c.Id,
+      id: name,
+      dockerId: c.Id,
       name,
       image: c.Image,
       status: c.State === 'running' ? 'running' : c.State === 'exited' ? 'stopped' : 'unknown',

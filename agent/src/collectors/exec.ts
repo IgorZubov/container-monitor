@@ -26,7 +26,9 @@ export async function checkExec(config: ExecCheckConfig): Promise<ExecCheckResul
     const output = stdout.trim() || stderr.trim();
 
     if (expectOutput !== undefined) {
-      const ok = output.includes(expectOutput);
+      // Exact match — `includes` would return true for 'inactive' against
+      // an expectOutput of 'active', which is exactly the wrong answer.
+      const ok = output === expectOutput;
       return { ok, output, ...(ok ? {} : { error: `expected "${expectOutput}" in output` }) };
     }
 

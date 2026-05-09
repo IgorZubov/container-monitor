@@ -29,7 +29,9 @@ describe('checkSsl', () => {
     const { socket } = makeFakeSocket(future);
 
     vi.mocked(tls.connect).mockImplementationOnce((_opts, cb) => {
-      (cb as () => void)();
+      // Defer the connect callback so the `const socket = tls.connect(...)`
+      // inside ssl.ts has a chance to bind before the callback dereferences it.
+      setImmediate(cb as () => void);
       return socket as unknown as ReturnType<typeof tls.connect>;
     });
 
@@ -44,7 +46,9 @@ describe('checkSsl', () => {
     const { socket } = makeFakeSocket(soon);
 
     vi.mocked(tls.connect).mockImplementationOnce((_opts, cb) => {
-      (cb as () => void)();
+      // Defer the connect callback so the `const socket = tls.connect(...)`
+      // inside ssl.ts has a chance to bind before the callback dereferences it.
+      setImmediate(cb as () => void);
       return socket as unknown as ReturnType<typeof tls.connect>;
     });
 
@@ -58,7 +62,9 @@ describe('checkSsl', () => {
     const { socket } = makeFakeSocket(past);
 
     vi.mocked(tls.connect).mockImplementationOnce((_opts, cb) => {
-      (cb as () => void)();
+      // Defer the connect callback so the `const socket = tls.connect(...)`
+      // inside ssl.ts has a chance to bind before the callback dereferences it.
+      setImmediate(cb as () => void);
       return socket as unknown as ReturnType<typeof tls.connect>;
     });
 

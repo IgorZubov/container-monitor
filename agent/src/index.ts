@@ -33,7 +33,7 @@ async function postMetrics(): Promise<void> {
 
     // Post logs for each container (fire-and-forget, non-blocking)
     for (const c of containers) {
-      getContainerLogs(c.id).then((lines) => {
+      getContainerLogs(c.dockerId).then((lines) => {
         if (lines.length === 0) return;
         return fetch(`${BACKEND_URL}/logs`, {
           method: 'POST',
