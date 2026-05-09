@@ -19,14 +19,19 @@ export function broadcast(payload: unknown): void {
 // from a pre-fix redeploy) from lingering on the dashboard forever.
 const STALE_SERVICE_MS = parseInt(process.env.STALE_SERVICE_MS ?? '3600000', 10);
 
+// GROUP BY name + MAX(reported_at) collapses duplicate rows that share a
+// service name (different ids) down to the freshest one. SQLite's bare-column
+// rule guarantees the other selected columns come from that same row.
+
 const getActiveServices = db.prepare<[number]>(`
   SELECT s.id, s.name, s.image, s.labels,
-         m.status, m.uptime_sec, m.reported_at
+         m.status, m.uptime_sec, MAX(m.reported_at) AS reported_at
   FROM services s
   INNER JOIN metrics m ON m.id = (
     SELECT id FROM metrics WHERE service_id = s.id ORDER BY reported_at DESC LIMIT 1
   )
   WHERE m.reported_at >= ?
+  GROUP BY s.name
   ORDER BY s.name
 `);
 
