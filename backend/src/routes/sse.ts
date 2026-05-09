@@ -14,6 +14,10 @@ export function broadcast(payload: unknown): void {
   }
 }
 
+// Only return services seen within the last 10 minutes — stale records from
+// old container IDs (e.g. after a redeploy) disappear automatically.
+const STALE_MS = 10 * 60 * 1000;
+
 const getAllServices = db.prepare(`
   SELECT s.id, s.name, s.image, s.labels,
          m.status, m.uptime_sec, m.reported_at
@@ -21,6 +25,7 @@ const getAllServices = db.prepare(`
   LEFT JOIN metrics m ON m.id = (
     SELECT id FROM metrics WHERE service_id = s.id ORDER BY reported_at DESC LIMIT 1
   )
+  WHERE m.reported_at > ?
   ORDER BY s.name
 `);
 
@@ -32,7 +37,7 @@ export async function sseRoutes(app: FastifyInstance): Promise<void> {
     reply.raw.setHeader('X-Accel-Buffering', 'no');
     reply.raw.flushHeaders();
 
-    const snapshot = getAllServices.all();
+    const snapshot = getAllServices.all(Date.now() - STALE_MS);
     reply.raw.write(`data: ${JSON.stringify({ type: 'snapshot', services: snapshot })}\n\n`);
 
     clients.add(reply);
